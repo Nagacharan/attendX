@@ -7,7 +7,9 @@ if sys.stdout.encoding.lower() != 'utf-8':
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Request
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from config import settings
@@ -26,19 +28,36 @@ try:
     import cv2
     import numpy as np
     DEEPFACE_AVAILABLE = True
-except ImportError:
+except Exception as e:
     DEEPFACE_AVAILABLE = False
-    print("Warning: DeepFace not installed. Using safe fallback for face verification.")
+    print(f"Warning: DeepFace initialization error: {e}. Using safe fallback.")
 
 try:
     import jwt
     JWT_AVAILABLE = True
-except ImportError:
+except Exception as e:
     JWT_AVAILABLE = False
-    print("Warning: PyJWT not installed. QR codes won't be securely signed.")
+    print(f"Warning: PyJWT initialization error: {e}. QR codes won't be securely signed.")
 
 # Create FastAPI app
 app = FastAPI(title=settings.PROJECT_NAME, version=settings.VERSION)
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    import traceback
+    error_details = traceback.format_exc()
+    print(f"Global error: {error_details}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc), "traceback": error_details if not os.getenv("PROD") else None},
+    )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors(), "body": exc.body},
+    )
 
 # Load local datasets for development/bypass mode
 student_data = []
