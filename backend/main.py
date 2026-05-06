@@ -22,15 +22,19 @@ import urllib.request
 import urllib.error
 from datetime import datetime, timedelta, timezone
 
-# Optional DeepFace import
-try:
-    from deepface import DeepFace
-    import cv2
-    import numpy as np
-    DEEPFACE_AVAILABLE = True
-except Exception as e:
-    DEEPFACE_AVAILABLE = False
-    print(f"Warning: DeepFace initialization error: {e}. Using safe fallback.")
+# Optional DeepFace import - Skip on Vercel to avoid memory/dependency issues
+DEEPFACE_AVAILABLE = False
+if not os.getenv("VERCEL"):
+    try:
+        from deepface import DeepFace
+        import cv2
+        import numpy as np
+        DEEPFACE_AVAILABLE = True
+        print("DeepFace successfully loaded.")
+    except Exception as e:
+        print(f"Warning: DeepFace initialization error: {e}. Using safe fallback.")
+else:
+    print("Vercel environment detected. Skipping DeepFace import to conserve resources.")
 
 try:
     import jwt
